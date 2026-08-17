@@ -463,6 +463,11 @@ function App() {
       onDrop={async (event) => { event.preventDefault(); dragDepth.current = 0; setDropActive(false); await importFiles(await filesFromDrop(event.dataTransfer)); }}
     >
       <div className="viewer-layer">
+        <div
+          className="viewer-poster"
+          style={{ backgroundImage: `url(${activeSource.url})` }}
+          aria-hidden="true"
+        />
         <Suspense fallback={null}>
           <PanoramaViewer key={activeSource.id} yaw={yaw} pitch={pitch} roll={roll} focal={focal} projection={projection} lensProjection={lensProjection} sourceUrl={activeSource.url} sourceName={activeSource.name} onZoom={changeFocalFromWheel} onFirstInteract={() => setInteracted(true)} onReady={() => setViewerReady(true)} />
         </Suspense>

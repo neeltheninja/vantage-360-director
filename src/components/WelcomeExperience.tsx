@@ -32,16 +32,28 @@ export function WelcomeExperience({
       <div className="welcome-scrim" aria-hidden="true" />
 
       <motion.header
-        className="welcome-brand"
+        className="welcome-topbar"
         initial={reduceMotion ? false : { opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={transition}
       >
-        <span className="welcome-brand-mark"><Aperture size={22} weight="bold" /></span>
-        <span>
-          <strong>VANTAGE</strong>
-          <small>BY DASHVERSE</small>
-        </span>
+        <div className="welcome-brand">
+          <span className="welcome-brand-mark"><Aperture size={22} weight="bold" /></span>
+          <span className="welcome-brand-copy">
+            <strong>VANTAGE</strong>
+            <small>BY DASHVERSE</small>
+          </span>
+        </div>
+        <div className="welcome-top-actions" aria-label="Open Vantage">
+          <button className="welcome-secondary" type="button" onClick={onOpenFiles} aria-label="Open panorama">
+            <UploadSimple size={17} />
+            <span className="welcome-open-full">Open panorama</span>
+            <span className="welcome-open-short" aria-hidden="true">Open</span>
+          </button>
+          <button className="welcome-primary" type="button" onClick={onEnter} autoFocus>
+            Enter Vantage <ArrowRight size={17} weight="bold" />
+          </button>
+        </div>
       </motion.header>
 
       <motion.div
@@ -53,14 +65,6 @@ export function WelcomeExperience({
         <span className="welcome-label">A PANORAMA DIRECTOR</span>
         <h1 id="welcome-title">Every direction is a frame.</h1>
         <p>Step into a prompt-built world, direct the view, and export the shot.</p>
-        <div className="welcome-actions">
-          <button className="welcome-primary" type="button" onClick={onEnter} autoFocus>
-            Enter Vantage <ArrowRight size={17} weight="bold" />
-          </button>
-          <button className="welcome-secondary" type="button" onClick={onOpenFiles}>
-            <UploadSimple size={17} /> Open panorama
-          </button>
-        </div>
       </motion.div>
 
       <motion.button

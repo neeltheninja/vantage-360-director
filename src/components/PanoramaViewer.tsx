@@ -18,7 +18,7 @@ type ViewerProps = {
   onReady: () => void;
 };
 
-const VERTEX_SHADER = `#version 300 es
+const VERTEX_SHADER_WEBGL2 = `#version 300 es
 in vec2 aPosition;
 out vec2 vUv;
 void main() {
@@ -26,7 +26,7 @@ void main() {
   gl_Position = vec4(aPosition, 0.0, 1.0);
 }`;
 
-const FRAGMENT_SHADER = `#version 300 es
+const FRAGMENT_SHADER_WEBGL2 = `#version 300 es
 precision highp float;
 uniform sampler2D uPanorama;
 uniform mat3 uRotation;
@@ -55,7 +55,51 @@ void main() {
   outColor = texture(uPanorama, uv);
 }`;
 
-function compileShader(gl: WebGL2RenderingContext, type: number, source: string) {
+const VERTEX_SHADER_WEBGL1 = `
+attribute vec2 aPosition;
+varying vec2 vUv;
+void main() {
+  vUv = aPosition * 0.5 + 0.5;
+  gl_Position = vec4(aPosition, 0.0, 1.0);
+}`;
+
+const FRAGMENT_SHADER_WEBGL1 = `
+precision mediump float;
+uniform sampler2D uPanorama;
+uniform mat3 uRotation;
+uniform float uProjectionMode;
+uniform float uTanHalfHFov;
+uniform float uTanHalfVFov;
+uniform float uProjectionHalfWidth;
+varying vec2 vUv;
+
+void main() {
+  vec2 screen = vUv * 2.0 - 1.0;
+  vec3 localRay;
+  if (uProjectionMode > 0.5) {
+    float projectedX = screen.x * uProjectionHalfWidth;
+    float longitude = 2.0 * atan(projectedX, 2.0);
+    float tanLatitude = screen.y * uTanHalfVFov * (1.0 + cos(longitude)) * 0.5;
+    localRay = normalize(vec3(sin(longitude), tanLatitude, -cos(longitude)));
+  } else {
+    localRay = normalize(vec3(screen.x * uTanHalfHFov, screen.y * uTanHalfVFov, -1.0));
+  }
+  vec3 ray = normalize(uRotation * localRay);
+  float longitude = atan(ray.x, -ray.z);
+  float latitude = asin(clamp(ray.y, -1.0, 1.0));
+  vec2 uv = vec2(fract(0.5 + longitude / 6.28318530718), 0.5 - latitude / 3.14159265359);
+  gl_FragColor = texture2D(uPanorama, uv);
+}`;
+
+type PanoramaGl = WebGLRenderingContext | WebGL2RenderingContext;
+
+type PreparedTextureSource = {
+  source: TexImageSource;
+  width: number;
+  height: number;
+};
+
+function compileShader(gl: PanoramaGl, type: number, source: string) {
   const shader = gl.createShader(type);
   if (!shader) throw new Error("Could not create the panorama viewer shader.");
   gl.shaderSource(shader, source);
@@ -64,6 +108,31 @@ function compileShader(gl: WebGL2RenderingContext, type: number, source: string)
     throw new Error(gl.getShaderInfoLog(shader) || "Panorama viewer shader compilation failed.");
   }
   return shader;
+}
+
+function textureSourceWithinLimit(image: HTMLImageElement, maxTextureSize: number): PreparedTextureSource {
+  const scale = Math.min(
+    1,
+    maxTextureSize / image.naturalWidth,
+    maxTextureSize / image.naturalHeight,
+  );
+  if (scale >= 1) {
+    return { source: image, width: image.naturalWidth, height: image.naturalHeight };
+  }
+
+  const preview = document.createElement("canvas");
+  preview.width = Math.max(1, Math.floor(image.naturalWidth * scale));
+  preview.height = Math.max(1, Math.floor(image.naturalHeight * scale));
+  const context = preview.getContext("2d", { alpha: false });
+  if (!context) throw new Error("The browser could not prepare a GPU-safe panorama preview.");
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(image, 0, 0, preview.width, preview.height);
+  return { source: preview, width: preview.width, height: preview.height };
+}
+
+function isPowerOfTwo(value: number) {
+  return value > 0 && (value & (value - 1)) === 0;
 }
 
 export function PanoramaViewer({
@@ -104,13 +173,17 @@ export function PanoramaViewer({
     const canvas = canvasRef.current;
     if (!canvas) return;
     setError("");
-    const gl = canvas.getContext("webgl2", {
+    const contextOptions: WebGLContextAttributes = {
       alpha: false,
       antialias: false,
       powerPreference: "high-performance",
-    });
+    };
+    const webgl2 = canvas.getContext("webgl2", contextOptions);
+    const gl: PanoramaGl | null = webgl2 ?? canvas.getContext("webgl", contextOptions);
+    const isWebGl2 = webgl2 !== null;
     if (!gl) {
-      setError("This browser needs WebGL 2 for the 360 view.");
+      setError("360 controls are unavailable in this browser. Showing the source image instead.");
+      onReadyRef.current();
       return;
     }
 
@@ -120,12 +193,19 @@ export function PanoramaViewer({
     const program = gl.createProgram();
     if (!program) {
       setError("The browser could not start the panorama viewer.");
+      onReadyRef.current();
       return;
     }
 
     try {
-      gl.attachShader(program, compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER));
-      gl.attachShader(program, compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER));
+      gl.attachShader(
+        program,
+        compileShader(gl, gl.VERTEX_SHADER, isWebGl2 ? VERTEX_SHADER_WEBGL2 : VERTEX_SHADER_WEBGL1),
+      );
+      gl.attachShader(
+        program,
+        compileShader(gl, gl.FRAGMENT_SHADER, isWebGl2 ? FRAGMENT_SHADER_WEBGL2 : FRAGMENT_SHADER_WEBGL1),
+      );
       gl.linkProgram(program);
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
         throw new Error(gl.getProgramInfoLog(program) || "Panorama viewer program link failed.");
@@ -139,6 +219,7 @@ export function PanoramaViewer({
       gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The panorama viewer could not start.");
+      onReadyRef.current();
       return;
     }
 
@@ -174,37 +255,72 @@ export function PanoramaViewer({
 
     const image = new Image();
     image.crossOrigin = "anonymous";
+    image.decoding = "async";
     image.onload = () => {
       if (disposed) return;
-      const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
-      if (image.naturalWidth > maxTextureSize || image.naturalHeight > maxTextureSize) {
-        setError(`This image exceeds the browser's ${maxTextureSize}px texture limit.`);
-        return;
+      try {
+        const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
+        const prepared = textureSourceWithinLimit(image, maxTextureSize);
+        const supportsMipmappedRepeat = isWebGl2
+          || (isPowerOfTwo(prepared.width) && isPowerOfTwo(prepared.height));
+        texture = gl.createTexture();
+        if (!texture) throw new Error("The browser could not allocate the panorama texture.");
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        gl.texParameteri(
+          gl.TEXTURE_2D,
+          gl.TEXTURE_WRAP_S,
+          supportsMipmappedRepeat ? gl.REPEAT : gl.CLAMP_TO_EDGE,
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(
+          gl.TEXTURE_2D,
+          gl.TEXTURE_MIN_FILTER,
+          supportsMipmappedRepeat ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR,
+        );
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, prepared.source);
+        if (supportsMipmappedRepeat) gl.generateMipmap(gl.TEXTURE_2D);
+        const textureError = gl.getError();
+        if (textureError !== gl.NO_ERROR) {
+          throw new Error(`The browser rejected the panorama texture (WebGL ${textureError}).`);
+        }
+        gl.uniform1i(gl.getUniformLocation(program, "uPanorama"), 0);
+        ready = true;
+        draw();
+        onReadyRef.current();
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "The panorama texture could not be prepared.");
+        onReadyRef.current();
       }
-      texture = gl.createTexture();
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-      gl.generateMipmap(gl.TEXTURE_2D);
-      gl.uniform1i(gl.getUniformLocation(program, "uPanorama"), 0);
-      ready = true;
-      draw();
+    };
+    image.onerror = () => {
+      if (disposed) return;
+      setError("This browser could not load the panorama image.");
       onReadyRef.current();
     };
-    image.onerror = () => { if (!disposed) setError("This browser could not load the panorama texture."); };
     image.src = sourceUrl;
 
-    const observer = new ResizeObserver(draw);
-    observer.observe(canvas);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(draw);
+    observer?.observe(canvas);
+    window.addEventListener("resize", draw);
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      ready = false;
+      setError("The 360 renderer paused. Showing the source image while it recovers.");
+      onReadyRef.current();
+    };
+    const handleContextRestored = () => setRetry((value) => value + 1);
+    canvas.addEventListener("webglcontextlost", handleContextLost);
+    canvas.addEventListener("webglcontextrestored", handleContextRestored);
     const unsubscribers = [yaw.on("change", draw), pitch.on("change", draw), roll.on("change", draw)];
     return () => {
       disposed = true;
-      observer.disconnect();
+      observer?.disconnect();
+      window.removeEventListener("resize", draw);
+      canvas.removeEventListener("webglcontextlost", handleContextLost);
+      canvas.removeEventListener("webglcontextrestored", handleContextRestored);
       unsubscribers.forEach((unsubscribe) => unsubscribe());
       drawRef.current = () => undefined;
       if (texture) gl.deleteTexture(texture);
@@ -255,8 +371,14 @@ export function PanoramaViewer({
 
   return (
     <>
+      <div
+        className="flat-panorama"
+        style={{ backgroundImage: `url(${sourceUrl})` }}
+        role="img"
+        aria-hidden={!error}
+        aria-label={`Panorama preview of ${sourceName}`}
+      />
       <canvas ref={canvasRef} className={`viewer-canvas lens-${lensProjection}`} aria-hidden="true" />
-      {error && <div className="viewer-error" role="alert"><span>{error}</span><button type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button></div>}
       <div
         ref={hitArea}
         className="viewer-hit-area"
@@ -268,6 +390,16 @@ export function PanoramaViewer({
         onPointerCancel={releasePointer}
         onDoubleClick={() => { onZoom(-80); onFirstInteract(); }}
       />
+      {error && (
+        <div
+          className="viewer-error"
+          role="alert"
+          style={{ background: "linear-gradient(180deg, rgba(8, 9, 13, 0.42), rgba(8, 9, 13, 0.78))" }}
+        >
+          <span>{error}</span>
+          <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry 360 view</button>
+        </div>
+      )}
     </>
   );
 }
