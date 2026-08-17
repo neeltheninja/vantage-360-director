@@ -14,7 +14,7 @@ import {
   UploadSimple,
 } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "motion/react";
-import type { ShowcaseExample } from "../lib/showcase";
+import { getShowcasePreviewSrc, type ShowcaseExample } from "../lib/showcase";
 import panoramaSkillUrl from "../../docs/SKILL-FinalPanorama(DEFINITE).md?url";
 
 const SKILL_FILENAME = "SKILL-FinalPanorama(DEFINITE).md";
@@ -100,7 +100,7 @@ export function WelcomeExperience({
   const exampleList = (duplicate = false) => (
     <ul className="welcome-worlds-list" aria-label={duplicate ? undefined : "Showcase panoramas"} aria-hidden={duplicate || undefined}>
       {examples.map((example) => {
-        const thumbnail = `${import.meta.env.BASE_URL}showcase-thumbs/${example.filename.replace(/\.[^.]+$/, "")}.webp`;
+        const thumbnail = getShowcasePreviewSrc(example);
         return (
           <li key={`${duplicate ? "loop-" : ""}${example.id}`}>
             <button type="button" tabIndex={duplicate ? -1 : undefined} onClick={() => onOpenExample(example)} aria-label={`Open ${example.title} in Vantage`}>

@@ -40,7 +40,7 @@ import { downloadBlob } from "./lib/extract";
 import { createId } from "./lib/id";
 import { getPanoramaContract } from "./lib/panorama";
 import { filesFromDrop, sourcesFromFiles } from "./lib/sources";
-import { DEFAULT_SHOWCASE_IMAGE, SHOWCASE_IMAGES, type ShowcaseExample } from "./lib/showcase";
+import { DEFAULT_SHOWCASE_IMAGE, getShowcasePreviewSrc, SHOWCASE_IMAGES, type ShowcaseExample } from "./lib/showcase";
 import type { Guide, LensProjection, PanoramaSource, Projection, Shot } from "./types";
 import { PlanView } from "./components/PlanView";
 import { BearingReadout, BudgetReadout, PitchReadout } from "./components/Readouts";
@@ -288,22 +288,30 @@ function App() {
       return;
     }
 
+    const previewSource: PanoramaSource = {
+      id: sourceId,
+      name: example.title,
+      url: getShowcasePreviewSrc(example),
+      width: 768,
+      height: 384,
+    };
+
+    setSources((current) => current.some((item) => item.id === sourceId) ? current : [...current, previewSource]);
+    setShotsBySource((current) => current[sourceId] ? current : { ...current, [sourceId]: [] });
+    selectSource(previewSource);
+    setEntryOpen(false);
+    setPromptLabOpen(false);
+
     try {
       const dimensions = await readImageDimensions(example.src);
-      const source: PanoramaSource = {
-        id: sourceId,
-        name: example.title,
-        url: example.src,
-        ...dimensions,
-      };
-      setSources((current) => current.some((item) => item.id === sourceId) ? current : [...current, source]);
-      setShotsBySource((current) => current[sourceId] ? current : { ...current, [sourceId]: [] });
-      selectSource(source);
-      setEntryOpen(false);
-      setPromptLabOpen(false);
-      showToast(`${example.title} opened in the 360 viewer`);
+      setViewerReady(false);
+      setSources((current) => current.map((source) => source.id === sourceId
+        ? { ...source, url: example.src, ...dimensions }
+        : source));
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "This showcase image could not be opened.", "error");
+      showToast(error instanceof Error
+        ? `Preview opened. ${error.message}`
+        : "Preview opened, but the full-resolution image could not be loaded.", "warning");
     }
   }, [selectSource, showToast]);
 

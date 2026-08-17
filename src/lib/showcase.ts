@@ -159,6 +159,11 @@ export const SHOWCASE_IMAGES: readonly ShowcaseExample[] = sortedExamples.map(
 export const DEFAULT_SHOWCASE_IMAGE: ShowcaseExample | null =
   SHOWCASE_IMAGES[0] ?? null;
 
+/** Lightweight 2:1 preview used for instant homepage handoff into the viewer. */
+export function getShowcasePreviewSrc(example: ShowcaseExample) {
+  return `${import.meta.env.BASE_URL}showcase-thumbs/${withoutExtension(example.filename)}.webp`;
+}
+
 export const SHOWCASE_MODE: ShowcaseMode =
   SHOWCASE_IMAGES.length === 0
     ? "empty"
