@@ -78,6 +78,18 @@ button:disabled { opacity: 0.46; cursor: not-allowed; transform: none !important
 .welcome-secondary:hover { border-color: rgba(236,239,255,.34); background: rgba(19,22,32,.76); }
 .welcome-top-actions button:active { transform: translateY(1px) scale(.985); }
 .welcome-worlds { position: absolute; right: clamp(22px,3.4vw,54px); bottom: clamp(62px,7.5vh,88px); width: min(780px,57vw); padding: 14px; border: 1px solid rgba(217,222,255,.23); border-radius: 18px; color: #f8f9ff; background: linear-gradient(145deg,rgba(17,20,30,.94),rgba(9,11,17,.86)); box-shadow: inset 0 1px rgba(255,255,255,.08),0 28px 86px rgba(0,0,0,.42); backdrop-filter: blur(20px) saturate(116%); -webkit-backdrop-filter: blur(20px) saturate(116%); }
+.welcome-skill { position: relative; margin-bottom: 13px; padding: 11px; border: 1px solid rgba(176,185,255,.26); border-radius: 14px; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 11px; overflow: hidden; background: linear-gradient(105deg,rgba(119,135,255,.18),rgba(119,135,255,.055) 46%,rgba(255,255,255,.025)); box-shadow: inset 0 1px rgba(255,255,255,.09); }
+.welcome-skill::after { position: absolute; top: -56px; left: 22%; width: 190px; height: 110px; border-radius: 50%; background: rgba(132,146,255,.12); filter: blur(36px); content: ""; pointer-events: none; }
+.welcome-skill-icon { position: relative; z-index: 1; width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgba(190,198,255,.32); border-radius: 12px; color: #c4caff; background: linear-gradient(145deg,rgba(137,151,255,.26),rgba(65,78,177,.2)); box-shadow: inset 0 1px rgba(255,255,255,.14); }
+.welcome-skill-copy { position: relative; z-index: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.welcome-skill-copy small { color: #aeb7ff; font: 720 7px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.welcome-skill-copy strong { color: #f7f8ff; font-size: 12px; font-weight: 700; }
+.welcome-skill-copy > span { overflow: hidden; color: rgba(220,223,236,.64); font-size: 8px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.welcome-skill-actions { position: relative; z-index: 1; display: flex; align-items: center; gap: 5px; }
+.welcome-skill-actions button { min-height: 36px; padding: 0 10px; border: 1px solid rgba(222,226,255,.15); border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #e4e7f7; background: rgba(255,255,255,.045); font-size: 9px; font-weight: 680; white-space: nowrap; cursor: pointer; transition: border-color 160ms ease,background 160ms ease,transform 160ms var(--ease); }
+.welcome-skill-actions button:hover { border-color: rgba(184,193,255,.4); background: rgba(119,135,255,.14); transform: translateY(-1px); }
+.welcome-skill-actions button:active { transform: translateY(1px) scale(.98); }
+.welcome-skill-actions button:last-child { border-color: rgba(184,193,255,.34); color: #fff; background: linear-gradient(135deg,rgba(132,146,255,.86),rgba(83,101,226,.86)); box-shadow: inset 0 1px rgba(255,255,255,.2); }
 .welcome-worlds-header { min-height: 42px; margin-bottom: 11px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .welcome-worlds-header > div:first-child { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .welcome-prompt-icon { flex: 0 0 38px; width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid rgba(173,182,255,.26); border-radius: 12px; color: #afb7ff; background: rgba(119,135,255,.12); }
@@ -88,8 +100,10 @@ button:disabled { opacity: 0.46; cursor: not-allowed; transform: none !important
 .welcome-worlds-actions button { height: 36px; padding: 0 10px; border: 1px solid rgba(222,226,255,.14); border-radius: 10px; display: inline-grid; place-items: center; color: #dfe2f5; background: rgba(255,255,255,.045); font-size: 10px; font-weight: 650; white-space: nowrap; cursor: pointer; transition: border-color 160ms ease,background 160ms ease,transform 160ms var(--ease); }
 .welcome-worlds-actions button:hover { border-color: rgba(174,184,255,.42); background: rgba(119,135,255,.13); transform: translateY(-1px); }
 .welcome-worlds-actions button:active { transform: translateY(1px) scale(.98); }
-.welcome-worlds-track { margin: 0; padding: 0 2px 5px; display: grid; grid-auto-columns: minmax(190px,31%); grid-auto-flow: column; gap: 9px; overflow-x: auto; overscroll-behavior-x: contain; scroll-padding-inline: 2px; scroll-snap-type: x mandatory; scrollbar-color: rgba(152,163,255,.38) transparent; scrollbar-width: thin; list-style: none; }
-.welcome-worlds-track li { min-width: 0; scroll-snap-align: start; }
+.welcome-worlds-track { margin: 0; padding: 0 2px 5px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-color: rgba(152,163,255,.38) transparent; scrollbar-width: thin; }
+.welcome-worlds-marquee { width: max-content; display: flex; }
+.welcome-worlds-list { margin: 0; padding: 0 9px 0 0; display: flex; gap: 9px; list-style: none; }
+.welcome-worlds-list li { width: clamp(190px,17.3vw,238px); min-width: 0; }
 .welcome-worlds-track li > button { width: 100%; min-width: 0; padding: 0 9px 9px; border: 1px solid rgba(225,229,255,.13); border-radius: 13px; display: grid; grid-template-columns: minmax(0,1fr) 16px; align-items: center; gap: 7px; overflow: hidden; color: #eef0fb; background: rgba(255,255,255,.035); text-align: left; cursor: pointer; transition: border-color 170ms ease,background 170ms ease,transform 180ms var(--ease),box-shadow 180ms ease; }
 .welcome-worlds-track li > button:hover { border-color: rgba(174,184,255,.4); background: rgba(119,135,255,.09); transform: translateY(-2px); box-shadow: 0 14px 32px rgba(0,0,0,.26); }
 .welcome-worlds-track li > button:active { transform: translateY(1px) scale(.99); }
@@ -571,7 +585,13 @@ input[type="range"] { width: 100%; accent-color: var(--accent); cursor: ew-resiz
   .welcome-worlds-header small { display: none; }
   .welcome-worlds-actions { gap: 4px; }
   .welcome-worlds-actions button { height: 34px; padding: 0 9px; }
-  .welcome-worlds-track { grid-auto-columns: minmax(188px,72%); gap: 7px; }
+  .welcome-skill { padding: 9px; grid-template-columns: 36px minmax(0,1fr); gap: 8px; }
+  .welcome-skill-icon { width: 36px; height: 36px; border-radius: 10px; }
+  .welcome-skill-copy > span { display: none; }
+  .welcome-skill-actions { grid-column: 1/-1; display: grid; grid-template-columns: .85fr 1.15fr 1fr; }
+  .welcome-skill-actions button { min-width: 0; min-height: 34px; padding: 0 7px; font-size: 8px; }
+  .welcome-worlds-list { gap: 7px; padding-right: 7px; }
+  .welcome-worlds-list li { width: min(252px,72vw); }
   .welcome-worlds-track img { height: 84px; }
   .welcome-footer { right: 18px; bottom: 18px; left: 18px; font-size: 8px; }
   .welcome-footer > span:first-child { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -638,6 +658,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); cursor: ew-resiz
   .welcome-story h1 { font-size: clamp(48px,6vw,72px); }
   .welcome-story > p { margin-top: 14px; }
   .welcome-worlds { bottom: 52px; }
+  .welcome-skill { padding-top: 8px; padding-bottom: 8px; }
+  .welcome-skill-copy > span { display: none; }
   .left-rail, .right-rail { bottom: 110px; }
   .strip-rail { height: 82px; }
   .strip-image { height: 46px; }
