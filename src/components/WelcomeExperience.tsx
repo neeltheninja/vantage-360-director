@@ -8,6 +8,8 @@ import {
   CopySimple,
   DownloadSimple,
   FileMd,
+  Pause,
+  Play,
   Sparkle,
   UploadSimple,
 } from "@phosphor-icons/react";
@@ -81,7 +83,7 @@ export function WelcomeExperience({
       previous = now;
       if (shelf) {
         const loopWidth = shelf.scrollWidth / 2;
-        shelf.scrollLeft += elapsed * 0.018;
+        shelf.scrollLeft += elapsed * 0.028;
         if (shelf.scrollLeft >= loopWidth) shelf.scrollLeft -= loopWidth;
       }
       frame = window.requestAnimationFrame(advance);
@@ -225,6 +227,15 @@ export function WelcomeExperience({
             </span>
           </div>
           <div className="welcome-worlds-actions">
+            <button
+              type="button"
+              onClick={() => setAutoScrollPaused((paused) => !paused)}
+              aria-label={autoScrollPaused ? "Resume showcase motion" : "Pause showcase motion"}
+              aria-pressed={autoScrollPaused}
+              title={autoScrollPaused ? "Resume motion" : "Pause motion"}
+            >
+              {autoScrollPaused ? <Play size={14} weight="fill" /> : <Pause size={14} weight="fill" />}
+            </button>
             <button type="button" onClick={() => scrollWorlds(-1)} aria-label="Scroll showcase left"><CaretLeft size={16} /></button>
             <button type="button" onClick={() => scrollWorlds(1)} aria-label="Scroll showcase right"><CaretRight size={16} /></button>
           </div>
@@ -232,8 +243,6 @@ export function WelcomeExperience({
         <div
           className="welcome-worlds-track"
           ref={worlds}
-          onPointerEnter={(event) => { if (event.pointerType === "mouse") setAutoScrollPaused(true); }}
-          onPointerLeave={(event) => { if (event.pointerType === "mouse") setAutoScrollPaused(false); }}
           onPointerDown={() => setAutoScrollPaused(true)}
           onFocusCapture={() => setAutoScrollPaused(true)}
           onBlurCapture={(event) => {
