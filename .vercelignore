@@ -1,0 +1,5 @@
+.playwright-cli/
+.codebase-memory/
+output/
+examples/
+Panorama_360_perfected_SKILL.md

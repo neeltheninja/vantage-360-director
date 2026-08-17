@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.vercel/
+.playwright-cli/
+.codebase-memory/
+output/
+examples/
+
+*.log
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Internal generation guidance is not part of the deployed product.
+Panorama_360_perfected_SKILL.md
