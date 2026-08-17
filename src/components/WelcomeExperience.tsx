@@ -66,32 +66,12 @@ export function WelcomeExperience({
   const scrollWorlds = (direction: -1 | 1) => {
     const shelf = worlds.current;
     if (!shelf) return;
+    setAutoScrollPaused(true);
     shelf.scrollBy({
       left: direction * Math.min(620, shelf.clientWidth * 0.82),
       behavior: reduceMotion ? "auto" : "smooth",
     });
   };
-
-  useEffect(() => {
-    if (reduceMotion || autoScrollPaused || examples.length < 2) return;
-    let frame = 0;
-    let previous = performance.now();
-
-    const advance = (now: number) => {
-      const shelf = worlds.current;
-      const elapsed = Math.min(48, now - previous);
-      previous = now;
-      if (shelf) {
-        const loopWidth = shelf.scrollWidth / 2;
-        shelf.scrollLeft += elapsed * 0.028;
-        if (shelf.scrollLeft >= loopWidth) shelf.scrollLeft -= loopWidth;
-      }
-      frame = window.requestAnimationFrame(advance);
-    };
-
-    frame = window.requestAnimationFrame(advance);
-    return () => window.cancelAnimationFrame(frame);
-  }, [autoScrollPaused, examples.length, reduceMotion]);
 
   useEffect(() => () => {
     if (copyReset.current) window.clearTimeout(copyReset.current);
@@ -241,15 +221,11 @@ export function WelcomeExperience({
           </div>
         </header>
         <div
-          className="welcome-worlds-track"
+          className={`welcome-worlds-track ${autoScrollPaused ? "is-paused" : ""}`}
           ref={worlds}
-          onPointerDown={() => setAutoScrollPaused(true)}
-          onFocusCapture={() => setAutoScrollPaused(true)}
-          onBlurCapture={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) setAutoScrollPaused(false);
-          }}
           onWheel={(event) => {
             if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+            setAutoScrollPaused(true);
             event.currentTarget.scrollLeft += event.deltaY;
           }}
         >
