@@ -62,6 +62,8 @@ The interface uses React, TypeScript, Vite, Motion, and a compact custom WebGL 2
 
 Large line-art jobs use overlapped tiles so 8K output does not require a stack of full-resolution GPU framebuffers. Full-flat filters wrap horizontally and continue over each pole using reflection plus a half-turn in longitude.
 
+Read [How VANTAGE works](docs/ARCHITECTURE.md) for the complete interaction model, panorama contract, projection equations, sampling pipeline, line-art stages, resource lifecycle, and deployment architecture.
+
 ## Publish to GitHub
 
 After creating an empty GitHub repository, run:
