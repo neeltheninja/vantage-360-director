@@ -40,7 +40,7 @@ import { downloadBlob } from "./lib/extract";
 import { createId } from "./lib/id";
 import { getPanoramaContract } from "./lib/panorama";
 import { filesFromDrop, sourcesFromFiles } from "./lib/sources";
-import { DEFAULT_SHOWCASE_IMAGE, type ShowcaseExample } from "./lib/showcase";
+import { DEFAULT_SHOWCASE_IMAGE, SHOWCASE_IMAGES, type ShowcaseExample } from "./lib/showcase";
 import type { Guide, LensProjection, PanoramaSource, Projection, Shot } from "./types";
 import { PlanView } from "./components/PlanView";
 import { BearingReadout, BudgetReadout, PitchReadout } from "./components/Readouts";
@@ -484,6 +484,8 @@ function App() {
             onEnter={() => setEntryOpen(false)}
             onOpenFiles={() => fileInput.current?.click()}
             onOpenPromptLab={() => setPromptLabOpen(true)}
+            examples={SHOWCASE_IMAGES.filter((example) => !example.isDefault)}
+            onOpenExample={(example) => void openShowcaseExample(example)}
           />
         )}
       </AnimatePresence>
@@ -496,7 +498,13 @@ function App() {
         inert={entryOpen || promptLabOpen}
       >
         <header className="topbar glass-panel">
-          <button className="brand-block source-title-button" type="button" onClick={() => { setLibraryTab("images"); setLeftOpen(true); }}>
+          <button
+            className="brand-block source-title-button"
+            type="button"
+            aria-label="Return to Vantage home"
+            title="Return to Vantage home"
+            onClick={() => setEntryOpen(true)}
+          >
             <span className="brand-mark"><Aperture size={18} weight="bold" /></span>
             <span className="brand-copy">
               <span className="product-wordmark"><strong>VANTAGE</strong><em>by DASHVERSE</em></span>

@@ -15,3 +15,4 @@ examples/
 
 # Internal generation guidance is not part of the deployed product.
 Panorama_360_perfected_SKILL.md
+.vercel
