@@ -29,6 +29,25 @@ Current camera / full panorama / shot set
 
 This separation is intentional. An import can succeed without making assumptions about its aspect ratio; camera interaction does not continuously rebuild React state; and export does not depend on the size or resolution of the on-screen preview.
 
+## Entry, showcase, and Frameo workflow
+
+The first screen is not a separate poster or landing-page mockup. `WelcomeExperience` sits over the real `PanoramaViewer`, which is already rendering the default Vantage Room at the maximum 3 mm Natural Wide coverage. Entering the app only removes the narrative layer and reveals the director controls; it does not reload or replace the panorama.
+
+During entry, the normal editor chrome is both visually hidden and `inert`. This prevents buttons and global camera shortcuts from operating behind the welcome experience. The prompt workspace is a full-viewport dialog with its own scroll container, focus loop, Escape behavior, and sticky Vantage masthead, so it remains usable even though the application body is intentionally non-scrolling.
+
+Worked examples are discovered at build time by `src/lib/showcase.ts`:
+
+```text
+docs/showcase/**/*.{avif,gif,jpeg,jpg,png,webp}
+        -> Vite import.meta.glob
+        -> stable ID + filename-derived title + asset URL
+        -> default launch source + Prompt Lab gallery
+```
+
+`vantage-prompt-room.webp` is explicitly sorted first. Every other compatible image is naturally sorted, and the UI has explicit empty, single, and gallery layouts. Opening an example reads its native dimensions in the browser, creates a normal `PanoramaSource`, selects it, resets to 360 Natural Wide, and closes the learning workspace. No hand-maintained manifest is involved. Because Vercel serves a static build, adding a production example still requires a commit and redeploy.
+
+The Frameo method lives in `docs/SKILL-FinalPanorama(DEFINITE).md`. `PromptLab` imports that file with Vite's `?raw` loader, computes its displayed integrity statistics from the same string, copies the whole string through the Clipboard API with a legacy fallback, and downloads a Blob created from those exact bytes. The UI does not maintain a second shortened copy of the skill. It separately provides a concise handoff message and the required Frameo settings, while leaving the full source document available as the public repository artifact.
+
 ## A normal session
 
 1. Open, paste, or drop one image, several images, a directory, or a ZIP archive.
@@ -253,6 +272,8 @@ No serverless function or secret is required for the current architecture.
 | --- | --- |
 | `src/App.tsx` | Session state, camera commands, import orchestration, shots, batch packaging, and application shell |
 | `src/components/PanoramaViewer.tsx` | Interactive WebGL viewer and pointer/wheel input |
+| `src/components/WelcomeExperience.tsx` | Immersive live-panorama entry and prompt-workspace portal |
+| `src/components/PromptLab.tsx` | Worked examples, exact skill copy/download, and Frameo Agent Chat guide |
 | `src/components/ExportStudio.tsx` | Export scope/treatment UX, live preview, resolution and quality controls |
 | `src/components/PlanView.tsx` | Top-down heading and shot visualization |
 | `src/lib/sources.ts` | Files, folders, ZIPs, MIME detection, decode fallback, and source creation |
@@ -263,6 +284,7 @@ No serverless function or secret is required for the current architecture.
 | `src/lib/exportPipeline.ts` | Projection/treatment composition and resource release |
 | `src/lib/lineart.ts` | Multi-stage GPU line extraction and adaptive tiling |
 | `src/lib/id.ts` | Browser-compatible unique IDs |
+| `src/lib/showcase.ts` | Build-time showcase discovery, ordering, titles, and default source selection |
 | `src/types.ts` | Panorama, shot, projection, guide, and quality types |
 
 That architecture keeps the key promise simple: what the user directs is what the exporter re-renders from the original panorama, at the selected geometry and delivery size.

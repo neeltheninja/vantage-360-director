@@ -28,6 +28,7 @@ import {
   Minus,
   Plus,
   Question,
+  Sparkle,
   UploadSimple,
   Warning,
   X,
@@ -39,21 +40,31 @@ import { downloadBlob } from "./lib/extract";
 import { createId } from "./lib/id";
 import { getPanoramaContract } from "./lib/panorama";
 import { filesFromDrop, sourcesFromFiles } from "./lib/sources";
+import { DEFAULT_SHOWCASE_IMAGE, type ShowcaseExample } from "./lib/showcase";
 import type { Guide, LensProjection, PanoramaSource, Projection, Shot } from "./types";
 import { PlanView } from "./components/PlanView";
 import { BearingReadout, BudgetReadout, PitchReadout } from "./components/Readouts";
-import { ExportStudio, type ExportRequest } from "./components/ExportStudio";
+import type { ExportRequest } from "./components/ExportStudio";
+import { WelcomeExperience } from "./components/WelcomeExperience";
 
 const SAMPLE_SOURCE: PanoramaSource = {
-  id: "sample-studio",
-  name: "The Color Suite",
-  url: "/vantage-studio-pano.png",
-  width: 1774,
-  height: 887,
+  id: DEFAULT_SHOWCASE_IMAGE ? `showcase-${DEFAULT_SHOWCASE_IMAGE.id}` : "sample-studio",
+  name: DEFAULT_SHOWCASE_IMAGE?.title ?? "The Color Suite",
+  url: DEFAULT_SHOWCASE_IMAGE?.src ?? "/vantage-studio-pano.png",
+  width: DEFAULT_SHOWCASE_IMAGE ? 4096 : 1774,
+  height: DEFAULT_SHOWCASE_IMAGE ? 2304 : 887,
 };
 
 const PanoramaViewer = lazy(() =>
   import("./components/PanoramaViewer").then((module) => ({ default: module.PanoramaViewer })),
+);
+
+const PromptLab = lazy(() =>
+  import("./components/PromptLab").then((module) => ({ default: module.PromptLab })),
+);
+
+const ExportStudio = lazy(() =>
+  import("./components/ExportStudio").then((module) => ({ default: module.ExportStudio })),
 );
 
 type LibraryTab = "images" | "shots";
@@ -106,6 +117,32 @@ function safeFilename(value: string) {
   return value.trim().replace(/\.[a-z0-9]{1,8}$/i, "").replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "vantage-frame";
 }
 
+function readImageDimensions(url: string) {
+  return new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onerror = () => reject(new Error("This showcase image could not be opened."));
+    image.src = url;
+  });
+}
+
+function trapDialogFocus(event: React.KeyboardEvent<HTMLElement>) {
+  if (event.key !== "Tab") return;
+  const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )).filter((control) => control.offsetParent !== null);
+  if (controls.length === 0) return;
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 function App() {
   const yaw = useMotionValue(0);
   const pitch = useMotionValue(0);
@@ -126,6 +163,8 @@ function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [entryOpen, setEntryOpen] = useState(true);
+  const [promptLabOpen, setPromptLabOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
   const [viewerReady, setViewerReady] = useState(false);
   const [interacted, setInteracted] = useState(false);
@@ -227,6 +266,8 @@ function App() {
       setProjection("rectilinear");
       setLensProjection("panini");
       resetView();
+      setEntryOpen(false);
+      setPromptLabOpen(false);
       const rejectedCopy = result.rejected ? ` ${result.rejected} other file${result.rejected === 1 ? "" : "s"} could not be decoded.` : "";
       showToast(`Loaded ${result.sources.length} image${result.sources.length === 1 ? "" : "s"}.${rejectedCopy}`, result.rejected ? "warning" : "success");
     } catch {
@@ -235,6 +276,36 @@ function App() {
       setImporting(false);
     }
   }, [resetView, showToast]);
+
+  const openShowcaseExample = useCallback(async (example: ShowcaseExample) => {
+    const sourceId = `showcase-${example.id}`;
+    const existing = sourcesRef.current.find((source) => source.id === sourceId);
+
+    if (existing) {
+      selectSource(existing);
+      setEntryOpen(false);
+      setPromptLabOpen(false);
+      return;
+    }
+
+    try {
+      const dimensions = await readImageDimensions(example.src);
+      const source: PanoramaSource = {
+        id: sourceId,
+        name: example.title,
+        url: example.src,
+        ...dimensions,
+      };
+      setSources((current) => current.some((item) => item.id === sourceId) ? current : [...current, source]);
+      setShotsBySource((current) => current[sourceId] ? current : { ...current, [sourceId]: [] });
+      selectSource(source);
+      setEntryOpen(false);
+      setPromptLabOpen(false);
+      showToast(`${example.title} opened in the 360 viewer`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "This showcase image could not be opened.", "error");
+    }
+  }, [selectSource, showToast]);
 
   useEffect(() => {
     const onPaste = (event: ClipboardEvent) => {
@@ -294,6 +365,11 @@ function App() {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       if (target.matches("input, textarea, select")) return;
+      if (promptLabOpen) {
+        if (event.key === "Escape") setPromptLabOpen(false);
+        return;
+      }
+      if (entryOpen) return;
       const modified = event.metaKey || event.ctrlKey || event.altKey;
       if (event.code === "Space") { event.preventDefault(); setChromeHidden(true); return; }
       if (!modified && event.key.toLowerCase() === "c") captureShot();
@@ -322,7 +398,7 @@ function App() {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onWindowBlur);
     };
-  }, [captureShot, changeFocal, cycleGuide, cycleProjection, openExport, pitch, resetView, yaw]);
+  }, [captureShot, changeFocal, cycleGuide, cycleProjection, entryOpen, openExport, pitch, promptLabOpen, resetView, yaw]);
 
   const handleStripPointer = (event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -379,7 +455,7 @@ function App() {
 
   return (
     <main
-      className={`app-shell projection-${projection} lens-${lensProjection} ${chromeHidden ? "chrome-hidden" : ""}`}
+      className={`app-shell projection-${projection} lens-${lensProjection} ${chromeHidden ? "chrome-hidden" : ""} ${entryOpen ? "entry-open" : ""} ${promptLabOpen ? "prompt-lab-open" : ""}`}
       onDragEnter={(event) => { event.preventDefault(); dragDepth.current += 1; setDropActive(true); }}
       onDragOver={(event) => event.preventDefault()}
       onDragLeave={(event) => { event.preventDefault(); dragDepth.current = Math.max(0, dragDepth.current - 1); if (dragDepth.current === 0) setDropActive(false); }}
@@ -392,11 +468,28 @@ function App() {
         </Suspense>
         <div className="viewer-vignette" />
         <GuideOverlay guide={guide} />
-        {!interacted && viewerReady && <div className="interaction-hint glass-panel">Drag anywhere to look <i /> Scroll to zoom</div>}
+        {!entryOpen && !interacted && viewerReady && <div className="interaction-hint glass-panel"><span>Drag anywhere to look</span><i /><span className="interaction-hint-scroll">Scroll to zoom</span></div>}
         {!viewerReady && projection !== "flat" && <div className="viewer-loading" aria-live="polite"><CircleNotch size={20} className="spin" /><span>Loading panorama</span></div>}
       </div>
 
-      <motion.div className="chrome-layer" animate={{ opacity: chromeHidden ? 0 : 1 }} transition={{ duration: reduceMotion ? 0 : 0.1 }} aria-hidden={chromeHidden}>
+      <AnimatePresence>
+        {entryOpen && !promptLabOpen && (
+          <WelcomeExperience
+            sourceName={activeSource.name}
+            onEnter={() => setEntryOpen(false)}
+            onOpenFiles={() => fileInput.current?.click()}
+            onOpenPromptLab={() => setPromptLabOpen(true)}
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        className="chrome-layer"
+        animate={{ opacity: chromeHidden || entryOpen || promptLabOpen ? 0 : 1 }}
+        transition={{ duration: reduceMotion ? 0 : 0.14 }}
+        aria-hidden={chromeHidden || entryOpen || promptLabOpen}
+        inert={entryOpen || promptLabOpen}
+      >
         <header className="topbar glass-panel">
           <button className="brand-block source-title-button" type="button" onClick={() => { setLibraryTab("images"); setLeftOpen(true); }}>
             <span className="brand-mark"><Aperture size={18} weight="bold" /></span>
@@ -406,7 +499,7 @@ function App() {
             </span>
           </button>
           <nav className="projection-switcher" aria-label="Projection mode">{PROJECTIONS.map((item) => <button key={item.id} className={projection === item.id ? "is-active" : ""} type="button" aria-pressed={projection === item.id} onClick={() => setProjection(item.id)}>{item.label}</button>)}</nav>
-          <div className="top-actions"><button className="secondary-button open-button" type="button" aria-label="Add images" onClick={() => fileInput.current?.click()}><UploadSimple size={16} /><span>Add images</span></button><button className="primary-button" type="button" onClick={openExport}><Export size={16} weight="bold" />Export</button></div>
+          <div className="top-actions"><button className="secondary-button prompt-worlds-button" type="button" onClick={() => setPromptLabOpen(true)}><Sparkle size={16} weight="fill" /><span>Prompt worlds</span></button><button className="secondary-button open-button" type="button" aria-label="Add images" onClick={() => fileInput.current?.click()}><UploadSimple size={16} /><span>Add images</span></button><button className="primary-button" type="button" onClick={openExport}><Export size={16} weight="bold" />Export</button></div>
         </header>
 
         <AnimatePresence>
@@ -475,13 +568,37 @@ function App() {
         <AnimatePresence>{planOpen && <PlanView yaw={yaw} fov={fov} shots={shots} onClose={() => setPlanOpen(false)} onAim={aimCamera} />}</AnimatePresence>
       </motion.div>
 
+      <AnimatePresence>
+        {promptLabOpen && (
+          <motion.div
+            className="prompt-lab-layer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Vantage prompt worlds and Frameo panorama skill"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.2 }}
+            onKeyDown={trapDialogFocus}
+          >
+            <Suspense fallback={<div className="prompt-lab-loading"><CircleNotch size={24} className="spin" /><span>Opening prompt worlds</span></div>}>
+              <PromptLab onClose={() => setPromptLabOpen(false)} onOpenExample={(example) => void openShowcaseExample(example)} />
+            </Suspense>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>{dropActive && <motion.div className="drop-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><div><UploadSimple size={34} /><strong>Drop images to open</strong><span>Single files, folders, and ZIP archives are supported.</span></div></motion.div>}</AnimatePresence>
-      <input ref={fileInput} className="file-input" aria-label="Panorama files" type="file" accept="image/*,.zip" multiple onChange={(event) => { void importFiles(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} />
-      <input ref={folderInput} className="file-input" aria-label="Panorama folder" type="file" accept="image/*" multiple {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)} onChange={(event) => { void importFiles(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} />
+      <input ref={fileInput} className="file-input" aria-label="Panorama files" type="file" accept="image/*,.zip" multiple tabIndex={-1} onChange={(event) => { void importFiles(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} />
+      <input ref={folderInput} className="file-input" aria-label="Panorama folder" type="file" accept="image/*" multiple tabIndex={-1} {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)} onChange={(event) => { void importFiles(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} />
       <AnimatePresence>{toast && <motion.div key={toast.id} className="toast glass-panel" data-tone={toast.tone} role={toast.tone === "error" ? "alert" : "status"} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}><span className="toast-icon">{toast.tone === "success" ? <Check size={16} weight="bold" /> : <Warning size={16} weight="fill" />}</span><span className="toast-message">{toast.message}</span><button className="toast-close" type="button" aria-label="Dismiss notification" onClick={dismissToast}><X size={14} /></button>{!reduceMotion && <motion.span className="toast-life" initial={{ scaleX: 1 }} animate={{ scaleX: 0 }} transition={{ duration: toast.tone === "error" ? 5.2 : 3, ease: "linear" }} />}</motion.div>}</AnimatePresence>
 
       <AnimatePresence>
-        {exportOpen && <ExportStudio source={activeSource} shots={shots} currentView={{ yaw: yaw.get(), pitch: pitch.get(), roll: roll.get(), focal, projection: lensProjection }} horizontalPxPerDegree={panorama.horizontalPxPerDegree} verticalPxPerDegree={panorama.verticalPxPerDegree} exporting={exporting} progress={exportProgress} onClose={() => !exporting && setExportOpen(false)} onExport={runExport} />}
+        {exportOpen && (
+          <Suspense fallback={<div className="modal-backdrop export-backdrop"><div className="export-loading-card"><CircleNotch size={22} className="spin" /><span>Opening Export Studio</span></div></div>}>
+            <ExportStudio source={activeSource} shots={shots} currentView={{ yaw: yaw.get(), pitch: pitch.get(), roll: roll.get(), focal, projection: lensProjection }} horizontalPxPerDegree={panorama.horizontalPxPerDegree} verticalPxPerDegree={panorama.verticalPxPerDegree} exporting={exporting} progress={exportProgress} onClose={() => !exporting && setExportOpen(false)} onExport={runExport} />
+          </Suspense>
+        )}
       </AnimatePresence>
 
       <AnimatePresence>

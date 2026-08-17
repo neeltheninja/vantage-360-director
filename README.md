@@ -36,6 +36,10 @@ npm run preview
 - Optional seam exposure normalization and 4x edge supersampling
 - Deterministic structural, detailed, and maximum line-art extraction
 - Seam-safe, pole-correct, adaptively tiled 8K line-art rendering
+- Immersive 4K Vantage Room entry experience with live 360 rendering behind it
+- Build-time showcase discovery from `docs/showcase/`, with no gallery manifest to maintain
+- The complete definitive panorama skill, available inside the app as one-click copy or Markdown download
+- A focused Frameo Agent Chat workflow with exact model, canvas, quality, take, and handoff guidance
 - Responsive desktop and mobile UI with Dashverse branding
 
 Imported files stay in the browser. The app does not upload source panoramas to a server.
@@ -62,7 +66,11 @@ The interface uses React, TypeScript, Vite, Motion, and a compact custom WebGL 2
 
 Large line-art jobs use overlapped tiles so 8K output does not require a stack of full-resolution GPU framebuffers. Full-flat filters wrap horizontally and continue over each pole using reflection plus a half-turn in longitude.
 
+The launch room and worked examples are Vite-discovered static assets. Adding a supported raster to `docs/showcase/` adds it to the in-app gallery on the next build. The definitive Frameo skill is imported verbatim from [`docs/SKILL-FinalPanorama(DEFINITE).md`](docs/SKILL-FinalPanorama(DEFINITE).md), so the copy and download actions cannot drift from the public source document.
+
 Read [How VANTAGE works](docs/ARCHITECTURE.md) for the complete interaction model, panorama contract, projection equations, sampling pipeline, line-art stages, resource lifecycle, and deployment architecture.
+
+Read [Showcase setup](docs/SHOWCASE.md) for the zero-manifest worked-example workflow.
 
 ## Publish to GitHub
 
